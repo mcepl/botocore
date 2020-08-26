@@ -18,8 +18,7 @@ AWS provides a test suite for signature version 4:
 https://github.com/awslabs/aws-c-auth/tree/v0.3.15/tests/aws-sig-v4-test-suite
 
 This module contains logic to run these tests.  The test files were
-placed in ./aws4_testsuite, and we're using nose's test generators to
-dynamically generate testcases based on these files.
+placed in ./aws4_testsuite.
 
 """
 import os
@@ -97,9 +96,9 @@ def test_generator():
             continue
 
         if HAS_CRT:
-            yield (_test_crt_signature_version_4, test_case)
+            _test_crt_signature_version_4(test_case)
         else:
-            yield (_test_signature_version_4, test_case)
+            _test_signature_version_4(test_case)
     datetime_patcher.stop()
 
 
@@ -145,14 +144,16 @@ def _test_signature_version_4(test_case):
     # Some stuff only works right when you go through auth.add_auth()
     # So don't assert the interim steps unless the end result was wrong.
     if actual_auth_header != test_case.authorization_header:
-        assert_equal(actual_canonical_request, test_case.canonical_request,
-                     test_case.raw_request, 'canonical_request')
+        assert_requests_equal(actual_canonical_request,
+                              test_case.canonical_request,
+                              test_case.raw_request, 'canonical_request')
 
-        assert_equal(actual_string_to_sign, test_case.string_to_sign,
-                     test_case.raw_request, 'string_to_sign')
+        assert_requests_equal(actual_string_to_sign, test_case.string_to_sign,
+                              test_case.raw_request, 'string_to_sign')
 
-        assert_equal(actual_auth_header, test_case.authorization_header,
-                     test_case.raw_request, 'authheader')
+        assert_requests_equal(actual_auth_header,
+                              test_case.authorization_header,
+                              test_case.raw_request, 'authheader')
 
 
 def _test_crt_signature_version_4(test_case):
@@ -166,11 +167,11 @@ def _test_crt_signature_version_4(test_case):
                                           SERVICE, REGION)
     auth.add_auth(request)
     actual_auth_header = request.headers['Authorization']
-    assert_equal(actual_auth_header, test_case.authorization_header,
-                 test_case.raw_request, 'authheader')
+    assert_requests_equal(actual_auth_header, test_case.authorization_header,
+                          test_case.raw_request, 'authheader')
 
 
-def assert_equal(actual, expected, raw_request, part):
+def assert_requests_equal(actual, expected, raw_request, part):
     if actual != expected:
         message = "The %s did not match" % part
         message += "\nACTUAL:%r !=\nEXPECT:%r" % (actual, expected)
