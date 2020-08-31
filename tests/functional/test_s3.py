@@ -14,7 +14,8 @@ import base64
 import re
 
 from tests import temporary_file
-from tests import unittest, mock, BaseSessionTest, create_session, ClientHTTPStubber
+from tests import (unittest, mock, BaseSessionTest, create_session,
+                   ClientHTTPStubber)
 
 import botocore.session
 from botocore.config import Config
