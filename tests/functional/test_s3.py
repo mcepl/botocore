@@ -12,7 +12,7 @@
 # language governing permissions and limitations under the License.
 import base64
 import re
-
+import pytest
 from tests import temporary_file
 from tests import (unittest, mock, BaseSessionTest, create_session,
                    ClientHTTPStubber)
@@ -34,7 +34,7 @@ class TestS3BucketValidation(unittest.TestCase):
     def test_invalid_bucket_name_raises_error(self):
         session = botocore.session.get_session()
         s3 = session.create_client('s3')
-        with self.assertRaises(ParamValidationError):
+        with pytest.raises(ParamValidationError):
             s3.put_object(Bucket='adfgasdfadfs/bucket/name',
                           Key='foo', Body=b'asdf')
 
@@ -100,7 +100,7 @@ class BaseS3ClientConfigurationTest(BaseSessionTest):
 class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
     def test_no_s3_config(self):
         client = self.create_s3_client()
-        self.assertIsNone(client.meta.config.s3)
+        assert client.meta.config.s3 is None
 
     def test_client_s3_dualstack_handles_uppercase_true(self):
         with temporary_file('w') as f:
@@ -111,8 +111,7 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 '    use_dualstack_endpoint = True'
             )
             client = self.create_s3_client()
-            self.assertEqual(
-                client.meta.config.s3['use_dualstack_endpoint'], True)
+            assert client.meta.config.s3['use_dualstack_endpoint'] is True
 
     def test_client_s3_dualstack_handles_lowercase_true(self):
         with temporary_file('w') as f:
@@ -123,8 +122,7 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 '    use_dualstack_endpoint = true'
             )
             client = self.create_s3_client()
-            self.assertEqual(
-                client.meta.config.s3['use_dualstack_endpoint'], True)
+            assert client.meta.config.s3['use_dualstack_endpoint'] is True
 
     def test_client_s3_accelerate_handles_uppercase_true(self):
         with temporary_file('w') as f:
@@ -135,8 +133,7 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 '    use_accelerate_endpoint = True'
             )
             client = self.create_s3_client()
-            self.assertEqual(
-                client.meta.config.s3['use_accelerate_endpoint'], True)
+            assert client.meta.config.s3['use_accelerate_endpoint'] is True
 
     def test_client_s3_accelerate_handles_lowercase_true(self):
         with temporary_file('w') as f:
@@ -147,8 +144,7 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 '    use_accelerate_endpoint = true'
             )
             client = self.create_s3_client()
-            self.assertEqual(
-                client.meta.config.s3['use_accelerate_endpoint'], True)
+            assert client.meta.config.s3['use_accelerate_endpoint'] is True
 
     def test_client_payload_signing_enabled_handles_uppercase_true(self):
         with temporary_file('w') as f:
@@ -159,8 +155,7 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 '    payload_signing_enabled = True'
             )
             client = self.create_s3_client()
-            self.assertEqual(
-                client.meta.config.s3['payload_signing_enabled'], True)
+            assert client.meta.config.s3['payload_signing_enabled'] is True
 
     def test_client_payload_signing_enabled_handles_lowercase_true(self):
         with temporary_file('w') as f:
@@ -171,8 +166,7 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 '    payload_signing_enabled = true'
             )
             client = self.create_s3_client()
-            self.assertEqual(
-                client.meta.config.s3['payload_signing_enabled'], True)
+            assert client.meta.config.s3['payload_signing_enabled'] is True
 
     def test_includes_unmodeled_s3_config_vars(self):
         with temporary_file('w') as f:
@@ -183,8 +177,7 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 '    unmodeled = unmodeled_val'
             )
             client = self.create_s3_client()
-            self.assertEqual(
-                client.meta.config.s3['unmodeled'], 'unmodeled_val')
+            assert client.meta.config.s3['unmodeled'] == 'unmodeled_val'
 
     def test_mixed_modeled_and_unmodeled_config_vars(self):
         with temporary_file('w') as f:
@@ -196,23 +189,17 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 '    unmodeled = unmodeled_val'
             )
             client = self.create_s3_client()
-            self.assertEqual(
-                client.meta.config.s3,
-                {
+            assert client.meta.config.s3 == {
                     'payload_signing_enabled': True,
                     'unmodeled': 'unmodeled_val'
                 }
-            )
 
     def test_use_arn_region(self):
         self.environ['AWS_S3_USE_ARN_REGION'] = 'true'
         client = self.create_s3_client()
-        self.assertEqual(
-            client.meta.config.s3,
-            {
+        assert client.meta.config.s3 == {
                 'use_arn_region': True,
             }
-        )
 
     def test_use_arn_region_config_var(self):
         with temporary_file('w') as f:
@@ -222,12 +209,9 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 's3_use_arn_region = true'
             )
             client = self.create_s3_client()
-            self.assertEqual(
-                client.meta.config.s3,
-                {
+            assert client.meta.config.s3 == {
                     'use_arn_region': True,
                 }
-            )
 
     def test_use_arn_region_nested_config_var(self):
         with temporary_file('w') as f:
@@ -238,22 +222,16 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 '    use_arn_region = true'
             )
             client = self.create_s3_client()
-            self.assertEqual(
-                client.meta.config.s3,
-                {
+            assert client.meta.config.s3 == {
                     'use_arn_region': True,
                 }
-            )
 
     def test_use_arn_region_is_case_insensitive(self):
         self.environ['AWS_S3_USE_ARN_REGION'] = 'True'
         client = self.create_s3_client()
-        self.assertEqual(
-            client.meta.config.s3,
-            {
+        assert client.meta.config.s3 == {
                 'use_arn_region': True,
             }
-        )
 
     def test_use_arn_region_env_var_overrides_config_var(self):
         self.environ['AWS_S3_USE_ARN_REGION'] = 'false'
@@ -265,12 +243,9 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 '    use_arn_region = true'
             )
             client = self.create_s3_client()
-        self.assertEqual(
-            client.meta.config.s3,
-            {
+        assert client.meta.config.s3 == {
                 'use_arn_region': False,
             }
-        )
 
     def test_client_config_use_arn_region_overrides_env_var(self):
         self.environ['AWS_S3_USE_ARN_REGION'] = 'true'
@@ -279,12 +254,9 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 s3={'use_arn_region': False}
             )
         )
-        self.assertEqual(
-            client.meta.config.s3,
-            {
+        assert client.meta.config.s3 == {
                 'use_arn_region': False,
             }
-        )
 
     def test_client_config_use_arn_region_overrides_config_var(self):
         with temporary_file('w') as f:
@@ -299,33 +271,23 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                     s3={'use_arn_region': False}
                 )
             )
-        self.assertEqual(
-            client.meta.config.s3,
-            {
+        assert client.meta.config.s3 == {
                 'use_arn_region': False,
             }
-        )
 
     def test_use_arn_region_is_case_insensitive(self):
         self.environ['AWS_S3_USE_ARN_REGION'] = 'True'
         client = self.create_s3_client()
-        self.assertEqual(
-            client.meta.config.s3,
-            {
+        assert client.meta.config.s3 == {
                 'use_arn_region': True,
             }
-        )
-
 
     def test_us_east_1_regional_env_var(self):
         self.environ['AWS_S3_US_EAST_1_REGIONAL_ENDPOINT'] = 'regional'
         client = self.create_s3_client()
-        self.assertEqual(
-            client.meta.config.s3,
-            {
+        assert client.meta.config.s3 == {
                 'us_east_1_regional_endpoint': 'regional',
             }
-        )
 
     def test_us_east_1_regional_config_var(self):
         with temporary_file('w') as f:
@@ -335,12 +297,9 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 's3_us_east_1_regional_endpoint = regional'
             )
             client = self.create_s3_client()
-            self.assertEqual(
-                client.meta.config.s3,
-                {
+            assert client.meta.config.s3 == {
                     'us_east_1_regional_endpoint': 'regional',
                 }
-            )
 
     def test_us_east_1_regional_nested_config_var(self):
         with temporary_file('w') as f:
@@ -351,12 +310,9 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 '    us_east_1_regional_endpoint = regional'
             )
             client = self.create_s3_client()
-            self.assertEqual(
-                client.meta.config.s3,
-                {
+            assert client.meta.config.s3 == {
                     'us_east_1_regional_endpoint': 'regional',
                 }
-            )
 
     def test_us_east_1_regional_env_var_overrides_config_var(self):
         self.environ['AWS_S3_US_EAST_1_REGIONAL_ENDPOINT'] = 'regional'
@@ -368,12 +324,9 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 '    us_east_1_regional_endpoint = legacy'
             )
             client = self.create_s3_client()
-        self.assertEqual(
-            client.meta.config.s3,
-            {
+        assert client.meta.config.s3 == {
                 'us_east_1_regional_endpoint': 'regional',
             }
-        )
 
     def test_client_config_us_east_1_regional_overrides_env_var(self):
         self.environ['AWS_S3_US_EAST_1_REGIONAL_ENDPOINT'] = 'regional'
@@ -382,12 +335,9 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                 s3={'us_east_1_regional_endpoint': 'legacy'}
             )
         )
-        self.assertEqual(
-            client.meta.config.s3,
-            {
+        assert client.meta.config.s3 == {
                 'us_east_1_regional_endpoint': 'legacy',
             }
-        )
 
     def test_client_config_us_east_1_regional_overrides_config_var(self):
         with temporary_file('w') as f:
@@ -402,15 +352,12 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
                     s3={'us_east_1_regional_endpoint': 'regional'}
                 )
             )
-        self.assertEqual(
-            client.meta.config.s3,
-            {
+        assert client.meta.config.s3 == {
                 'us_east_1_regional_endpoint': 'regional',
             }
-        )
 
     def test_client_validates_us_east_1_regional(self):
-        with self.assertRaises(InvalidS3UsEast1RegionalEndpointConfigError):
+        with pytest.raises(InvalidS3UsEast1RegionalEndpointConfigError):
             self.create_s3_client(
                 config=Config(
                     s3={'us_east_1_regional_endpoint': 'not-valid'}
@@ -419,30 +366,30 @@ class TestS3ClientConfigResolution(BaseS3ClientConfigurationTest):
 
     def test_client_region_defaults_to_us_east_1(self):
         client = self.create_s3_client(region_name=None)
-        self.assertEqual(client.meta.region_name, 'us-east-1')
+        assert client.meta.region_name == 'us-east-1'
 
     def test_client_region_remains_us_east_1(self):
         client = self.create_s3_client(region_name='us-east-1')
-        self.assertEqual(client.meta.region_name, 'us-east-1')
+        assert client.meta.region_name == 'us-east-1'
 
     def test_client_region_remains_aws_global(self):
         client = self.create_s3_client(region_name='aws-global')
-        self.assertEqual(client.meta.region_name, 'aws-global')
+        assert client.meta.region_name == 'aws-global'
 
     def test_client_region_defaults_to_aws_global_for_regional(self):
         self.environ['AWS_S3_US_EAST_1_REGIONAL_ENDPOINT'] = 'regional'
         client = self.create_s3_client(region_name=None)
-        self.assertEqual(client.meta.region_name, 'aws-global')
+        assert client.meta.region_name == 'aws-global'
 
     def test_client_region_remains_us_east_1_for_regional(self):
         self.environ['AWS_S3_US_EAST_1_REGIONAL_ENDPOINT'] = 'regional'
         client = self.create_s3_client(region_name='us-east-1')
-        self.assertEqual(client.meta.region_name, 'us-east-1')
+        assert client.meta.region_name == 'us-east-1'
 
     def test_client_region_remains_aws_global_for_regional(self):
         self.environ['AWS_S3_US_EAST_1_REGIONAL_ENDPOINT'] = 'regional'
         client = self.create_s3_client(region_name='aws-global')
-        self.assertEqual(client.meta.region_name, 'aws-global')
+        assert client.meta.region_name == 'aws-global'
 
 
 class TestS3Copy(BaseS3OperationTest):
@@ -483,9 +430,9 @@ class TestS3Copy(BaseS3OperationTest):
         )
 
         # Validate we retried and got second body
-        self.assertEqual(len(self.http_stubber.requests), 2)
-        self.assertEqual(response['ResponseMetadata']['HTTPStatusCode'], 200)
-        self.assertTrue('CopyObjectResult' in response)
+        assert len(self.http_stubber.requests) == 2
+        assert response['ResponseMetadata']['HTTPStatusCode'] == 200
+        assert 'CopyObjectResult' in response
 
     def test_s3_copy_object_with_incomplete_response(self):
         self.client, self.http_stubber = self.create_stubbed_s3_client(
@@ -494,7 +441,7 @@ class TestS3Copy(BaseS3OperationTest):
 
         incomplete_body = b'<?xml version="1.0" encoding="UTF-8"?>\n\n\n'
         self.http_stubber.add_response(status=200, body=incomplete_body)
-        with self.assertRaises(ResponseParserError):
+        with pytest.raises(ResponseParserError):
             self.client.copy_object(
                 Bucket='bucket',
                 CopySource='other-bucket/test.txt',
@@ -513,12 +460,27 @@ class TestAccesspointArn(BaseS3ClientConfigurationTest):
         http_stubber.start()
         return client, http_stubber
 
+    def assert_signing_region(self, request, expected_region):
+        auth_header = request.headers['Authorization'].decode('utf-8')
+        actual_region = self._V4_AUTH_REGEX.match(
+            auth_header).group('signing_region')
+        assert expected_region == actual_region
+
+    def assert_signing_name(self, request, expected_name):
+        auth_header = request.headers['Authorization'].decode('utf-8')
+        actual_name = self._V4_AUTH_REGEX.match(
+            auth_header).group('signing_name')
+        self.assertEqual(expected_name, actual_name)
+
+    def assert_signing_region_in_url(self, url, expected_region):
+        qs_components = parse_qs(urlsplit(url).query)
+        assert expected_region in qs_components['X-Amz-Credential'][0]
+
     def assert_expected_copy_source_header(self,
                                            http_stubber, expected_copy_source):
         request = self.http_stubber.requests[0]
-        self.assertIn('x-amz-copy-source', request.headers)
-        self.assertEqual(
-            request.headers['x-amz-copy-source'], expected_copy_source)
+        assert 'x-amz-copy-source' in request.headers
+        assert request.headers['x-amz-copy-source'] == expected_copy_source
 
     def add_copy_object_response(self, http_stubber):
         http_stubber.add_response(
@@ -529,42 +491,42 @@ class TestAccesspointArn(BaseS3ClientConfigurationTest):
         accesspoint_arn = (
             'arn:aws:s3::123456789012:accesspoint:myendpoint'
         )
-        with self.assertRaises(botocore.exceptions.ParamValidationError):
+        with pytest.raises(botocore.exceptions.ParamValidationError):
             self.client.list_objects(Bucket=accesspoint_arn)
 
     def test_missing_account_id_in_arn(self):
         accesspoint_arn = (
             'arn:aws:s3:us-west-2::accesspoint:myendpoint'
         )
-        with self.assertRaises(botocore.exceptions.ParamValidationError):
+        with pytest.raises(botocore.exceptions.ParamValidationError):
             self.client.list_objects(Bucket=accesspoint_arn)
 
     def test_missing_accesspoint_name_in_arn(self):
         accesspoint_arn = (
             'arn:aws:s3:us-west-2:123456789012:accesspoint'
         )
-        with self.assertRaises(botocore.exceptions.ParamValidationError):
+        with pytest.raises(botocore.exceptions.ParamValidationError):
             self.client.list_objects(Bucket=accesspoint_arn)
 
     def test_accesspoint_includes_asterisk(self):
         accesspoint_arn = (
             'arn:aws:s3:us-west-2:123456789012:accesspoint:*'
         )
-        with self.assertRaises(botocore.exceptions.ParamValidationError):
+        with pytest.raises(botocore.exceptions.ParamValidationError):
             self.client.list_objects(Bucket=accesspoint_arn)
 
     def test_accesspoint_includes_dot(self):
         accesspoint_arn = (
             'arn:aws:s3:us-west-2:123456789012:accesspoint:my.endpoint'
         )
-        with self.assertRaises(botocore.exceptions.ParamValidationError):
+        with pytest.raises(botocore.exceptions.ParamValidationError):
             self.client.list_objects(Bucket=accesspoint_arn)
 
     def test_accesspoint_arn_contains_subresources(self):
         accesspoint_arn = (
             'arn:aws:s3:us-west-2:123456789012:accesspoint:myendpoint:object'
         )
-        with self.assertRaises(botocore.exceptions.ParamValidationError):
+        with pytest.raises(botocore.exceptions.ParamValidationError):
             self.client.list_objects(Bucket=accesspoint_arn)
 
     def test_accesspoint_arn_with_custom_endpoint(self):
@@ -596,7 +558,7 @@ class TestAccesspointArn(BaseS3ClientConfigurationTest):
         )
         self.client, _ = self.create_stubbed_s3_client(
             config=Config(s3={'use_accelerate_endpoint': True}))
-        with self.assertRaises(
+        with pytest.raises(
                 botocore.exceptions.
                 UnsupportedS3AccesspointConfigurationError):
             self.client.list_objects(Bucket=accesspoint_arn)
@@ -607,7 +569,7 @@ class TestAccesspointArn(BaseS3ClientConfigurationTest):
         )
         self.client, _ = self.create_stubbed_s3_client(
             region_name='cn-north-1')
-        with self.assertRaises(
+        with pytest.raises(
                 botocore.exceptions.
                 UnsupportedS3AccesspointConfigurationError):
             self.client.list_objects(Bucket=accesspoint_arn)
@@ -620,7 +582,7 @@ class TestAccesspointArn(BaseS3ClientConfigurationTest):
             region_name='cn-north-1',
             config=Config(s3={'use_accelerate_endpoint': True})
         )
-        with self.assertRaises(
+        with pytest.raises(
                 botocore.exceptions.
                 UnsupportedS3AccesspointConfigurationError):
             self.client.list_objects(Bucket=accesspoint_arn)
@@ -1010,7 +972,7 @@ class TestOnlyAsciiCharsAllowed(BaseS3OperationTest):
     def test_validates_non_ascii_chars_trigger_validation_error(self):
         self.http_stubber.add_response()
         with self.http_stubber:
-            with self.assertRaises(ParamValidationError):
+            with pytest.raises(ParamValidationError):
                 self.client.put_object(
                     Bucket='foo', Key='bar', Metadata={
                         'goodkey': 'good', 'non-ascii': u'\u2713'})
@@ -1056,14 +1018,10 @@ class TestS3GetBucketLifecycle(BaseS3OperationTest):
             response = s3.get_bucket_lifecycle(Bucket='mybucket')
         # Each Transition member should have at least one of the
         # transitions provided.
-        self.assertEqual(
-            response['Rules'][0]['Transition'],
-            {'Days': 40, 'StorageClass': 'STANDARD_IA'}
-        )
-        self.assertEqual(
-            response['Rules'][1]['NoncurrentVersionTransition'],
-            {'NoncurrentDays': 40, 'StorageClass': 'STANDARD_IA'}
-        )
+        assert response['Rules'][0]['Transition'] == {
+            'Days': 40, 'StorageClass': 'STANDARD_IA'}
+        assert response['Rules'][1]['NoncurrentVersionTransition'] == {
+            'NoncurrentDays': 40, 'StorageClass': 'STANDARD_IA'}
 
 
 class TestS3PutObject(BaseS3OperationTest):
@@ -1097,8 +1055,8 @@ class TestS3PutObject(BaseS3OperationTest):
             response = s3.put_object(Bucket='mybucket', Key='mykey', Body=b'foo')
             # The first response should have been retried even though the xml is
             # invalid and eventually return the 200 response.
-            self.assertEqual(response['ResponseMetadata']['HTTPStatusCode'], 200)
-            self.assertEqual(len(http_stubber.requests), 2)
+            assert response['ResponseMetadata']['HTTPStatusCode'] == 200
+            assert len(http_stubber.requests) == 2
 
 
 class TestWriteGetObjectResponse(BaseS3ClientConfigurationTest):
@@ -1168,7 +1126,7 @@ class TestS3SigV4(BaseS3OperationTest):
     def test_content_md5_set(self):
         with self.http_stubber:
             self.client.put_object(Bucket='foo', Key='bar', Body='baz')
-        self.assertIn('content-md5', self.get_sent_headers())
+        assert 'content-md5' in self.get_sent_headers()
 
     def test_content_md5_set_empty_body(self):
         with self.http_stubber:
@@ -1194,7 +1152,7 @@ class TestS3SigV4(BaseS3OperationTest):
             self.client.put_object(Bucket='foo', Key='bar', Body='baz')
         sent_headers = self.get_sent_headers()
         sha_header = sent_headers.get('x-amz-content-sha256')
-        self.assertNotEqual(sha_header, b'UNSIGNED-PAYLOAD')
+        assert sha_header != b'UNSIGNED-PAYLOAD'
 
     def test_content_sha256_not_set_if_config_value_is_false(self):
         config = Config(signature_version='s3v4', s3={
@@ -1208,7 +1166,7 @@ class TestS3SigV4(BaseS3OperationTest):
             self.client.put_object(Bucket='foo', Key='bar', Body='baz')
         sent_headers = self.get_sent_headers()
         sha_header = sent_headers.get('x-amz-content-sha256')
-        self.assertEqual(sha_header, b'UNSIGNED-PAYLOAD')
+        assert sha_header == b'UNSIGNED-PAYLOAD'
 
     def test_content_sha256_set_if_md5_is_unavailable(self):
         with mock.patch('botocore.auth.MD5_AVAILABLE', False):
@@ -1217,8 +1175,8 @@ class TestS3SigV4(BaseS3OperationTest):
                     self.client.put_object(Bucket='foo', Key='bar', Body='baz')
         sent_headers = self.get_sent_headers()
         unsigned = 'UNSIGNED-PAYLOAD'
-        self.assertNotEqual(sent_headers['x-amz-content-sha256'], unsigned)
-        self.assertNotIn('content-md5', sent_headers)
+        assert sent_headers['x-amz-content-sha256'] != unsigned
+        assert'content-md5' not in sent_headers
 
 
 class TestCanSendIntegerHeaders(BaseSessionTest):
@@ -1234,7 +1192,7 @@ class TestCanSendIntegerHeaders(BaseSessionTest):
             # Verify that the request integer value of 3 has been converted to
             # string '3'.  This also means we've made it pass the signer which
             # expects string values in order to sign properly.
-            self.assertEqual(headers['Content-Length'], b'3')
+            assert headers['Content-Length'], b'3'
 
 
 class TestRegionRedirect(BaseS3OperationTest):
@@ -1299,16 +1257,16 @@ class TestRegionRedirect(BaseS3OperationTest):
         self.http_stubber.add_response(**self.success_response)
         with self.http_stubber:
             response = self.client.list_objects(Bucket='foo')
-        self.assertEqual(response['ResponseMetadata']['HTTPStatusCode'], 200)
-        self.assertEqual(len(self.http_stubber.requests), 2)
+        assert response['ResponseMetadata']['HTTPStatusCode'] == 200
+        assert len(self.http_stubber.requests) == 2
 
         initial_url = ('https://s3.us-west-2.amazonaws.com/foo'
                        '?encoding-type=url')
-        self.assertEqual(self.http_stubber.requests[0].url, initial_url)
+        assert self.http_stubber.requests[0].url == initial_url
 
         fixed_url = ('https://s3.eu-central-1.amazonaws.com/foo'
                      '?encoding-type=url')
-        self.assertEqual(self.http_stubber.requests[1].url, fixed_url)
+        assert self.http_stubber.requests[1].url == fixed_url
 
     def test_region_redirect_cache(self):
         self.http_stubber.add_response(**self.redirect_response)
@@ -1319,20 +1277,18 @@ class TestRegionRedirect(BaseS3OperationTest):
             first_response = self.client.list_objects(Bucket='foo')
             second_response = self.client.list_objects(Bucket='foo')
 
-        self.assertEqual(
-            first_response['ResponseMetadata']['HTTPStatusCode'], 200)
-        self.assertEqual(
-            second_response['ResponseMetadata']['HTTPStatusCode'], 200)
+        assert first_response['ResponseMetadata']['HTTPStatusCode'] == 200
+        assert second_response['ResponseMetadata']['HTTPStatusCode'] == 200
 
-        self.assertEqual(len(self.http_stubber.requests), 3)
+        assert len(self.http_stubber.requests) == 3
         initial_url = ('https://s3.us-west-2.amazonaws.com/foo'
                        '?encoding-type=url')
-        self.assertEqual(self.http_stubber.requests[0].url, initial_url)
+        assert self.http_stubber.requests[0].url == initial_url
 
         fixed_url = ('https://s3.eu-central-1.amazonaws.com/foo'
                      '?encoding-type=url')
-        self.assertEqual(self.http_stubber.requests[1].url, fixed_url)
-        self.assertEqual(self.http_stubber.requests[2].url, fixed_url)
+        assert self.http_stubber.requests[1].url == fixed_url
+        assert self.http_stubber.requests[2].url == fixed_url
 
     def test_resign_request_with_region_when_needed(self):
 
@@ -1343,17 +1299,16 @@ class TestRegionRedirect(BaseS3OperationTest):
             http_stubber.add_response(**self.bad_signing_region_response)
             http_stubber.add_response(**self.success_response)
             first_response = client.list_objects(Bucket='foo')
-            self.assertEqual(
-                first_response['ResponseMetadata']['HTTPStatusCode'], 200)
+            assert first_response['ResponseMetadata']['HTTPStatusCode'] == 200
 
-            self.assertEqual(len(http_stubber.requests), 2)
+            assert len(http_stubber.requests) == 2
             initial_url = ('https://foo.s3.us-west-2.amazonaws.com/'
                            '?encoding-type=url')
-            self.assertEqual(http_stubber.requests[0].url, initial_url)
+            assert http_stubber.requests[0].url == initial_url
 
             fixed_url = ('https://foo.s3.eu-central-1.amazonaws.com/'
                          '?encoding-type=url')
-            self.assertEqual(http_stubber.requests[1].url, fixed_url)
+            assert http_stubber.requests[1].url == fixed_url
 
     def test_resign_request_in_us_east_1(self):
         region_headers = {'x-amz-bucket-region': 'eu-central-1'}
@@ -1366,14 +1321,14 @@ class TestRegionRedirect(BaseS3OperationTest):
             http_stubber.add_response(headers=region_headers)
             http_stubber.add_response()
             response = client.head_object(Bucket='foo', Key='bar')
-            self.assertEqual(response['ResponseMetadata']['HTTPStatusCode'], 200)
+            assert response['ResponseMetadata']['HTTPStatusCode'] == 200
 
-            self.assertEqual(len(http_stubber.requests), 4)
+            assert len(http_stubber.requests) == 4
             initial_url = ('https://foo.s3.amazonaws.com/bar')
-            self.assertEqual(http_stubber.requests[0].url, initial_url)
+            assert http_stubber.requests[0].url == initial_url
 
             fixed_url = ('https://foo.s3.eu-central-1.amazonaws.com/bar')
-            self.assertEqual(http_stubber.requests[-1].url, fixed_url)
+            assert http_stubber.requests[-1].url == fixed_url
 
     def test_resign_request_in_us_east_1_fails(self):
         region_headers = {'x-amz-bucket-region': 'eu-central-1'}
@@ -1387,9 +1342,9 @@ class TestRegionRedirect(BaseS3OperationTest):
             http_stubber.add_response(headers=region_headers)
             # The final request still fails with a 400.
             http_stubber.add_response(status=400)
-            with self.assertRaises(ClientError) as e:
+            with pytest.raises(ClientError):
                 client.head_object(Bucket='foo', Key='bar')
-            self.assertEqual(len(http_stubber.requests), 4)
+            assert len(http_stubber.requests) == 4
 
     def test_no_region_redirect_for_accesspoint(self):
         self.http_stubber.add_response(**self.redirect_response)
@@ -1400,8 +1355,7 @@ class TestRegionRedirect(BaseS3OperationTest):
             try:
                 self.client.list_objects(Bucket=accesspoint_arn)
             except self.client.exceptions.ClientError as e:
-                self.assertEqual(
-                    e.response['Error']['Code'], 'PermanentRedirect')
+                assert e.response['Error']['Code'] == 'PermanentRedirect'
             else:
                 self.fail('PermanentRedirect error should have been raised')
 
@@ -1412,9 +1366,9 @@ class TestGeneratePresigned(BaseS3OperationTest):
         # Assert that it looks like a v2 presigned url by asserting it does
         # not have a couple of the v4 qs components and assert that it has the
         # v2 Signature component.
-        self.assertNotIn('X-Amz-Credential', qs_components)
-        self.assertNotIn('X-Amz-Algorithm', qs_components)
-        self.assertIn('Signature', qs_components)
+        assert 'X-Amz-Credential' not in qs_components
+        assert 'X-Amz-Algorithm' not in qs_components
+        assert 'Signature' in qs_components
 
     def test_generate_unauthed_url(self):
         config = Config(signature_version=botocore.UNSIGNED)
@@ -1425,7 +1379,7 @@ class TestGeneratePresigned(BaseS3OperationTest):
                 'Bucket': 'foo',
                 'Key': 'bar'
             })
-        self.assertEqual(url, 'https://foo.s3.amazonaws.com/bar')
+        assert url == 'https://foo.s3.amazonaws.com/bar'
 
     def test_generate_unauthed_post(self):
         config = Config(signature_version=botocore.UNSIGNED)
@@ -1435,40 +1389,39 @@ class TestGeneratePresigned(BaseS3OperationTest):
             'fields': {'key': 'bar'},
             'url': 'https://foo.s3.amazonaws.com/'
         }
-        self.assertEqual(parts, expected)
+        assert parts == expected
 
     def test_default_presign_uses_sigv2(self):
         url = self.client.generate_presigned_url(ClientMethod='list_buckets')
-        self.assertNotIn('Algorithm=AWS4-HMAC-SHA256', url)
+        assert 'Algorithm=AWS4-HMAC-SHA256' not in url
 
     def test_sigv4_presign(self):
         config = Config(signature_version='s3v4')
         client = self.session.create_client('s3', self.region, config=config)
         url = client.generate_presigned_url(ClientMethod='list_buckets')
-        self.assertIn('Algorithm=AWS4-HMAC-SHA256', url)
+        assert 'Algorithm=AWS4-HMAC-SHA256' in url
 
     def test_sigv2_presign(self):
         config = Config(signature_version='s3')
         client = self.session.create_client('s3', self.region, config=config)
         url = client.generate_presigned_url(ClientMethod='list_buckets')
-        self.assertNotIn('Algorithm=AWS4-HMAC-SHA256', url)
+        assert 'Algorithm=AWS4-HMAC-SHA256' not in url
 
     def test_uses_sigv4_for_unknown_region(self):
         client = self.session.create_client('s3', 'us-west-88')
         url = client.generate_presigned_url(ClientMethod='list_buckets')
-        self.assertIn('Algorithm=AWS4-HMAC-SHA256', url)
+        assert 'Algorithm=AWS4-HMAC-SHA256' in url
 
     def test_default_presign_sigv4_in_sigv4_only_region(self):
         client = self.session.create_client('s3', 'us-east-2')
         url = client.generate_presigned_url(ClientMethod='list_buckets')
-        self.assertIn('Algorithm=AWS4-HMAC-SHA256', url)
+        assert 'Algorithm=AWS4-HMAC-SHA256' in url
 
     def test_presign_unsigned(self):
         config = Config(signature_version=botocore.UNSIGNED)
         client = self.session.create_client('s3', 'us-east-2', config=config)
         url = client.generate_presigned_url(ClientMethod='list_buckets')
-        self.assertEqual(
-            'https://s3.us-east-2.amazonaws.com/', url)
+        assert 'https://s3.us-east-2.amazonaws.com/' == url
 
     def test_presign_url_with_ssec(self):
         config = Config(signature_version='s3')
@@ -1484,9 +1437,7 @@ class TestGeneratePresigned(BaseS3OperationTest):
         )
         # The md5 of the sse-c key will be injected when parameters are
         # built so it should show up in the presigned url as well.
-        self.assertIn(
-            'x-amz-server-side-encryption-customer-key-md5=', url
-        )
+        assert 'x-amz-server-side-encryption-customer-key-md5=' in url
 
     def test_presign_s3_accelerate(self):
         config = Config(signature_version=botocore.UNSIGNED,
@@ -1497,8 +1448,7 @@ class TestGeneratePresigned(BaseS3OperationTest):
             Params={'Bucket': 'mybucket', 'Key': 'mykey'}
         )
         # The url should be the accelerate endpoint
-        self.assertEqual(
-            'https://mybucket.s3-accelerate.amazonaws.com/mykey', url)
+        assert 'https://mybucket.s3-accelerate.amazonaws.com/mykey' == url
 
     def test_presign_post_s3_accelerate(self):
         config = Config(signature_version=botocore.UNSIGNED,
@@ -1511,7 +1461,7 @@ class TestGeneratePresigned(BaseS3OperationTest):
             'fields': {'key': 'mykey'},
             'url': 'https://mybucket.s3-accelerate.amazonaws.com/'
         }
-        self.assertEqual(parts, expected)
+        assert parts == expected
 
     def test_presign_uses_v2_for_aws_global(self):
         client = self.session.create_client('s3', 'aws-global')
