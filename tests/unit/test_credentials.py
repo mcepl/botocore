@@ -19,6 +19,7 @@ import tempfile
 import shutil
 import json
 import copy
+import pytest
 
 from dateutil.tz import tzlocal, tzutc
 
@@ -73,8 +74,8 @@ def path(filename):
 class TestCredentials(BaseEnvVar):
     def _ensure_credential_is_normalized_as_unicode(self, access, secret):
         c = credentials.Credentials(access, secret)
-        self.assertTrue(isinstance(c.access_key, type(u'u')))
-        self.assertTrue(isinstance(c.secret_key, type(u'u')))
+        assert isinstance(c.access_key, str)
+        assert isinstance(c.secret_key, str)
 
     def test_detect_nonascii_character(self):
         self._ensure_credential_is_normalized_as_unicode(
@@ -112,7 +113,7 @@ class TestRefreshableCredentials(TestCredentials):
         # say the current time is utcnow(), then we should need
         # a refresh.
         self.mock_time.return_value = datetime.now(tzlocal())
-        self.assertTrue(self.creds.refresh_needed())
+        assert self.creds.refresh_needed()
         # We should refresh creds, if we try to access "access_key"
         # or any of the cred vars.
         self.assertEqual(self.creds.access_key, 'NEW-ACCESS')
@@ -124,14 +125,14 @@ class TestRefreshableCredentials(TestCredentials):
             'ORIGINAL-ACCESS', 'ORIGINAL-SECRET', 'ORIGINAL-TOKEN',
             None, self.refresher, 'iam-role', time_fetcher=self.mock_time
         )
-        self.assertFalse(creds.refresh_needed())
+        assert not creds.refresh_needed()
 
     def test_no_refresh_needed(self):
         # The expiry time was 30 minutes ago, let's say it's an hour
         # ago currently.  That would mean we don't need a refresh.
         self.mock_time.return_value = (
             datetime.now(tzlocal()) - timedelta(minutes=60))
-        self.assertTrue(not self.creds.refresh_needed())
+        assert not self.creds.refresh_needed()
 
         self.assertEqual(self.creds.access_key, 'ORIGINAL-ACCESS')
         self.assertEqual(self.creds.secret_key, 'ORIGINAL-SECRET')
@@ -142,7 +143,7 @@ class TestRefreshableCredentials(TestCredentials):
         # signing process.
         self.mock_time.return_value = (
             datetime.now(tzlocal()) - timedelta(minutes=60))
-        self.assertTrue(not self.creds.refresh_needed())
+        assert not self.creds.refresh_needed()
         credential_set = self.creds.get_frozen_credentials()
         self.assertEqual(credential_set.access_key, 'ORIGINAL-ACCESS')
         self.assertEqual(credential_set.secret_key, 'ORIGINAL-SECRET')
@@ -151,25 +152,25 @@ class TestRefreshableCredentials(TestCredentials):
     def test_refresh_returns_empty_dict(self):
         self.refresher.return_value = {}
         self.mock_time.return_value = datetime.now(tzlocal())
-        self.assertTrue(self.creds.refresh_needed())
+        assert self.creds.refresh_needed()
 
-        with self.assertRaises(botocore.exceptions.CredentialRetrievalError):
+        with pytest.raises(botocore.exceptions.CredentialRetrievalError):
             self.creds.access_key
 
     def test_refresh_returns_none(self):
         self.refresher.return_value = None
         self.mock_time.return_value = datetime.now(tzlocal())
-        self.assertTrue(self.creds.refresh_needed())
+        assert self.creds.refresh_needed()
 
-        with self.assertRaises(botocore.exceptions.CredentialRetrievalError):
+        with pytest.raises(botocore.exceptions.CredentialRetrievalError):
             self.creds.access_key
 
     def test_refresh_returns_partial_credentials(self):
         self.refresher.return_value = {'access_key': 'akid'}
         self.mock_time.return_value = datetime.now(tzlocal())
-        self.assertTrue(self.creds.refresh_needed())
+        assert self.creds.refresh_needed()
 
-        with self.assertRaises(botocore.exceptions.CredentialRetrievalError):
+        with pytest.raises(botocore.exceptions.CredentialRetrievalError):
             self.creds.access_key
 
 
@@ -931,7 +932,7 @@ class TestAssumeRoleWithWebIdentityCredentialProvider(unittest.TestCase):
             profile_name=self.profile_name,
         )
         # If the role arn isn't set but the token path is raise an error
-        with self.assertRaises(botocore.exceptions.InvalidConfigError):
+        with pytest.raises(botocore.exceptions.InvalidConfigError):
             provider.load()
 
 
@@ -944,7 +945,7 @@ class TestEnvVar(BaseEnvVar):
         }
         provider = credentials.EnvProvider(environ)
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'foo')
         self.assertEqual(creds.secret_key, 'bar')
         self.assertEqual(creds.method, 'env')
@@ -957,7 +958,7 @@ class TestEnvVar(BaseEnvVar):
         }
         provider = credentials.EnvProvider(environ)
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'foo')
         self.assertEqual(creds.secret_key, 'bar')
         self.assertEqual(creds.token, 'baz')
@@ -972,6 +973,7 @@ class TestEnvVar(BaseEnvVar):
         provider = credentials.EnvProvider(environ)
         creds = provider.load()
         self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'foo')
         self.assertEqual(creds.secret_key, 'bar')
         self.assertEqual(creds.token, 'baz')
@@ -980,7 +982,7 @@ class TestEnvVar(BaseEnvVar):
     def test_envvars_not_found(self):
         provider = credentials.EnvProvider(environ={})
         creds = provider.load()
-        self.assertIsNone(creds)
+        assert creds is None
 
     def test_envvars_empty_string(self):
         environ = {
@@ -990,7 +992,7 @@ class TestEnvVar(BaseEnvVar):
         }
         provider = credentials.EnvProvider(environ)
         creds = provider.load()
-        self.assertIsNone(creds)
+        assert creds is None
 
     def test_expiry_omitted_if_envvar_empty(self):
         environ = {
@@ -1004,7 +1006,7 @@ class TestEnvVar(BaseEnvVar):
         # Because we treat empty env vars the same as not being provided,
         # we should return static credentials and not a refreshable
         # credential.
-        self.assertNotIsInstance(creds, credentials.RefreshableCredentials)
+        assert not isinstance(creds, credentials.RefreshableCredentials)
         self.assertEqual(creds.access_key, 'foo')
         self.assertEqual(creds.secret_key, 'bar')
         self.assertEqual(creds.token, 'baz')
@@ -1021,7 +1023,7 @@ class TestEnvVar(BaseEnvVar):
 
         del environ['AWS_CREDENTIAL_EXPIRATION']
 
-        with self.assertRaises(botocore.exceptions.PartialCredentialsError):
+        with pytest.raises(botocore.exceptions.PartialCredentialsError):
             creds.get_frozen_credentials()
 
     def test_can_override_env_var_mapping(self):
@@ -1083,7 +1085,7 @@ class TestEnvVar(BaseEnvVar):
             "Credentials were refreshed, but the refreshed credentials are "
             "still expired."
         )
-        with six.assertRaisesRegex(self, RuntimeError, error_message):
+        with pytest.raises(RuntimeError, match=error_message):
             creds.get_frozen_credentials()
 
     def test_partial_creds_is_an_error(self):
@@ -1095,7 +1097,7 @@ class TestEnvVar(BaseEnvVar):
             # Missing the AWS_SECRET_ACCESS_KEY
         }
         provider = credentials.EnvProvider(environ)
-        with self.assertRaises(botocore.exceptions.PartialCredentialsError):
+        with pytest.raises(botocore.exceptions.PartialCredentialsError):
             provider.load()
 
     def test_partial_creds_is_an_error_empty_string(self):
@@ -1107,7 +1109,7 @@ class TestEnvVar(BaseEnvVar):
             'AWS_SECRET_ACCESS_KEY': '',
         }
         provider = credentials.EnvProvider(environ)
-        with self.assertRaises(botocore.exceptions.PartialCredentialsError):
+        with pytest.raises(botocore.exceptions.PartialCredentialsError):
             provider.load()
 
     def test_missing_access_key_id_raises_error(self):
@@ -1125,7 +1127,7 @@ class TestEnvVar(BaseEnvVar):
         # Since the credentials are expired, we'll trigger a refresh
         # whenever we try to access them. At that refresh time, the relevant
         # environment variables are incomplete, so an error will be raised.
-        with self.assertRaises(botocore.exceptions.PartialCredentialsError):
+        with pytest.raises(botocore.exceptions.PartialCredentialsError):
             creds.get_frozen_credentials()
 
     def test_credentials_refresh(self):
@@ -1139,7 +1141,7 @@ class TestEnvVar(BaseEnvVar):
         }
         provider = credentials.EnvProvider(environ)
         creds = provider.load()
-        self.assertIsInstance(creds, credentials.RefreshableCredentials)
+        assert isinstance(creds, credentials.RefreshableCredentials)
 
         # Since the credentials are expired, we'll trigger a refresh whenever
         # we try to access them. But at this point the environment hasn't been
@@ -1149,7 +1151,7 @@ class TestEnvVar(BaseEnvVar):
             "Credentials were refreshed, but the refreshed credentials are "
             "still expired."
         )
-        with six.assertRaisesRegex(self, RuntimeError, error_message):
+        with pytest.raises(RuntimeError, match=error_message):
             creds.get_frozen_credentials()
 
         # Now we update the environment with non-expired credentials,
@@ -1205,8 +1207,8 @@ class TestEnvVar(BaseEnvVar):
         }
         provider = credentials.EnvProvider(environ)
         creds = provider.load()
-        self.assertNotIsInstance(creds, credentials.RefreshableCredentials)
-        self.assertIsInstance(creds, credentials.Credentials)
+        assert not isinstance(creds, credentials.RefreshableCredentials)
+        assert isinstance(creds, credentials.Credentials) is True
 
     def test_credentials_do_not_become_refreshable(self):
         environ = {
@@ -1233,7 +1235,7 @@ class TestEnvVar(BaseEnvVar):
         self.assertEqual(frozen.access_key, 'foo')
         self.assertEqual(frozen.secret_key, 'bar')
         self.assertEqual(frozen.token, 'baz')
-        self.assertNotIsInstance(creds, credentials.RefreshableCredentials)
+        assert not isinstance(creds, credentials.RefreshableCredentials)
 
     def test_credentials_throw_error_if_expiry_goes_away(self):
         expiry_time = datetime.now(tzlocal()) - timedelta(hours=1)
@@ -1247,7 +1249,7 @@ class TestEnvVar(BaseEnvVar):
 
         del environ['AWS_CREDENTIAL_EXPIRATION']
 
-        with self.assertRaises(credentials.PartialCredentialsError):
+        with pytest.raises(credentials.PartialCredentialsError):
             creds.get_frozen_credentials()
 
 
@@ -1267,10 +1269,10 @@ class TestSharedCredentialsProvider(BaseEnvVar):
             creds_filename='~/.aws/creds', profile_name='default',
             ini_parser=self.ini_parser)
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'foo')
         self.assertEqual(creds.secret_key, 'bar')
-        self.assertIsNone(creds.token)
+        assert creds.token is None
         self.assertEqual(creds.method, 'shared-credentials-file')
 
     def test_partial_creds_raise_error(self):
@@ -1283,7 +1285,7 @@ class TestSharedCredentialsProvider(BaseEnvVar):
         provider = credentials.SharedCredentialProvider(
             creds_filename='~/.aws/creds', profile_name='default',
             ini_parser=self.ini_parser)
-        with self.assertRaises(botocore.exceptions.PartialCredentialsError):
+        with pytest.raises(botocore.exceptions.PartialCredentialsError):
             provider.load()
 
     def test_credentials_file_exists_with_session_token(self):
@@ -1298,7 +1300,7 @@ class TestSharedCredentialsProvider(BaseEnvVar):
             creds_filename='~/.aws/creds', profile_name='default',
             ini_parser=self.ini_parser)
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'foo')
         self.assertEqual(creds.secret_key, 'bar')
         self.assertEqual(creds.token, 'baz')
@@ -1323,7 +1325,7 @@ class TestSharedCredentialsProvider(BaseEnvVar):
             creds_filename='~/.aws/creds', profile_name='dev',
             ini_parser=self.ini_parser)
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'd')
         self.assertEqual(creds.secret_key, 'e')
         self.assertEqual(creds.token, 'f')
@@ -1338,7 +1340,7 @@ class TestSharedCredentialsProvider(BaseEnvVar):
             creds_filename='~/.aws/creds', profile_name='dev',
             ini_parser=self.ini_parser)
         creds = provider.load()
-        self.assertIsNone(creds)
+        assert creds is None
 
 
 class TestConfigFileProvider(BaseEnvVar):
@@ -1362,7 +1364,7 @@ class TestConfigFileProvider(BaseEnvVar):
         provider = credentials.ConfigProvider('cli.cfg', 'default',
                                               self.parser)
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'a')
         self.assertEqual(creds.secret_key, 'b')
         self.assertEqual(creds.token, 'c')
@@ -1375,7 +1377,7 @@ class TestConfigFileProvider(BaseEnvVar):
         provider = credentials.ConfigProvider('cli.cfg', profile_name,
                                               self.parser)
         creds = provider.load()
-        self.assertIsNone(creds)
+        assert creds is None
 
     def test_config_file_errors_ignored(self):
         # We should move on to the next provider if the config file
@@ -1385,7 +1387,7 @@ class TestConfigFileProvider(BaseEnvVar):
         provider = credentials.ConfigProvider('cli.cfg', 'default',
                                               self.parser)
         creds = provider.load()
-        self.assertIsNone(creds)
+        assert creds is None
 
     def test_partial_creds_is_error(self):
         profile_config = {
@@ -1396,7 +1398,7 @@ class TestConfigFileProvider(BaseEnvVar):
         parser = mock.Mock()
         parser.return_value = parsed
         provider = credentials.ConfigProvider('cli.cfg', 'default', parser)
-        with self.assertRaises(botocore.exceptions.PartialCredentialsError):
+        with pytest.raises(botocore.exceptions.PartialCredentialsError):
             provider.load()
 
 
@@ -1418,10 +1420,10 @@ class TestBotoProvider(BaseEnvVar):
         provider = credentials.BotoProvider(environ=environ,
                                             ini_parser=self.ini_parser)
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'a')
         self.assertEqual(creds.secret_key, 'b')
-        self.assertIsNone(creds.token)
+        assert creds.token is None
         self.assertEqual(creds.method, 'boto-config')
 
     def test_env_var_set_for_boto_location(self):
@@ -1439,10 +1441,10 @@ class TestBotoProvider(BaseEnvVar):
         provider = credentials.BotoProvider(environ=environ,
                                             ini_parser=self.ini_parser)
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'a')
         self.assertEqual(creds.secret_key, 'b')
-        self.assertIsNone(creds.token)
+        assert creds.token is None
         self.assertEqual(creds.method, 'boto-config')
 
         # Assert that the parser was called with the filename specified
@@ -1455,7 +1457,7 @@ class TestBotoProvider(BaseEnvVar):
         provider = credentials.BotoProvider(environ={},
                                             ini_parser=self.ini_parser)
         creds = provider.load()
-        self.assertIsNone(creds)
+        assert creds is None
 
     def test_partial_creds_is_error(self):
         ini_parser = mock.Mock()
@@ -1467,7 +1469,7 @@ class TestBotoProvider(BaseEnvVar):
         }
         provider = credentials.BotoProvider(environ={},
                                             ini_parser=ini_parser)
-        with self.assertRaises(botocore.exceptions.PartialCredentialsError):
+        with pytest.raises(botocore.exceptions.PartialCredentialsError):
             provider.load()
 
 
@@ -1476,7 +1478,7 @@ class TestOriginalEC2Provider(BaseEnvVar):
     def test_load_ec2_credentials_file_not_exist(self):
         provider = credentials.OriginalEC2Provider(environ={})
         creds = provider.load()
-        self.assertIsNone(creds)
+        assert creds is None
 
     def test_load_ec2_credentials_file_exists(self):
         environ = {
@@ -1490,10 +1492,10 @@ class TestOriginalEC2Provider(BaseEnvVar):
         provider = credentials.OriginalEC2Provider(environ=environ,
                                                    parser=parser)
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'a')
         self.assertEqual(creds.secret_key, 'b')
-        self.assertIsNone(creds.token)
+        assert creds.token is None
         self.assertEqual(creds.method, 'ec2-credentials-file')
 
 
@@ -1512,9 +1514,9 @@ class TestInstanceMetadataProvider(BaseEnvVar):
         provider = credentials.InstanceMetadataProvider(
             iam_role_fetcher=fetcher)
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'a')
-        self.assertEqual(creds.secret_key, 'b')
+        self.assertEqual(creds.secret_key,  'b')
         self.assertEqual(creds.token, 'c')
         self.assertEqual(creds.method, 'iam-role')
 
@@ -1524,7 +1526,7 @@ class TestInstanceMetadataProvider(BaseEnvVar):
         provider = credentials.InstanceMetadataProvider(
             iam_role_fetcher=fetcher)
         creds = provider.load()
-        self.assertIsNone(creds)
+        assert creds is None
         fetcher.retrieve_iam_role_credentials.assert_called_with()
 
 
@@ -1550,11 +1552,11 @@ class CredentialResolverTest(BaseEnvVar):
     def test_get_provider_by_name(self):
         resolver = credentials.CredentialResolver(providers=[self.provider1])
         result = resolver.get_provider('provider1')
-        self.assertIs(result, self.provider1)
+        assert result is self.provider1
 
     def test_get_unknown_provider_raises_error(self):
         resolver = credentials.CredentialResolver(providers=[self.provider1])
-        with self.assertRaises(botocore.exceptions.UnknownCredentialError):
+        with pytest.raises(botocore.exceptions.UnknownCredentialError):
             resolver.get_provider('unknown-foo')
 
     def test_first_credential_non_none_wins(self):
@@ -1575,7 +1577,7 @@ class CredentialResolverTest(BaseEnvVar):
         resolver = credentials.CredentialResolver(providers=[self.provider1,
                                                              self.provider2])
         creds = resolver.load_credentials()
-        self.assertIsNone(creds)
+        assert creds is None
 
     def test_inject_additional_providers_after_existing(self):
         self.provider1.load.return_value = None
@@ -1594,7 +1596,7 @@ class CredentialResolverTest(BaseEnvVar):
         resolver.insert_after('provider1', new_provider)
 
         creds = resolver.load_credentials()
-        self.assertIsNotNone(creds)
+        assert creds is not None
 
         self.assertEqual(creds.access_key, 'd')
         self.assertEqual(creds.secret_key, 'e')
@@ -1603,7 +1605,7 @@ class CredentialResolverTest(BaseEnvVar):
         # *not* have been called because new_provider already returned
         # a non-None response.
         self.provider1.load.assert_called_with()
-        self.assertTrue(not self.provider2.called)
+        assert not self.provider2.called
 
     def test_inject_provider_before_existing(self):
         new_provider = mock.Mock()
@@ -1627,11 +1629,11 @@ class CredentialResolverTest(BaseEnvVar):
                                                              self.provider2])
         resolver.remove('provider1')
         creds = resolver.load_credentials()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'd')
         self.assertEqual(creds.secret_key, 'e')
         self.assertEqual(creds.token, 'f')
-        self.assertTrue(not self.provider1.load.called)
+        assert not self.provider1.load.called
         self.provider2.load.assert_called_with()
 
     def test_provider_unknown(self):
@@ -1641,7 +1643,7 @@ class CredentialResolverTest(BaseEnvVar):
         resolver.remove('providerFOO')
         # But an error IS raised if you try to insert after an unknown
         # provider.
-        with self.assertRaises(botocore.exceptions.UnknownCredentialError):
+        with pytest.raises(botocore.exceptions.UnknownCredentialError):
             resolver.insert_after('providerFoo', None)
 
 
@@ -1683,27 +1685,25 @@ class TestCreateCredentialResolver(BaseEnvVar):
 
     def test_create_credential_resolver(self):
         resolver = credentials.create_credential_resolver(self.session)
-        self.assertIsInstance(resolver, credentials.CredentialResolver)
+        assert isinstance(resolver, credentials.CredentialResolver)
 
     def test_explicit_profile_ignores_env_provider(self):
         self.session.set_config_variable('profile', 'dev')
         resolver = credentials.create_credential_resolver(self.session)
 
-        self.assertTrue(
-            all(not isinstance(p, EnvProvider) for p in resolver.providers))
+        assert all(not isinstance(p, EnvProvider) for p in resolver.providers)
 
     def test_no_profile_checks_env_provider(self):
         # If no profile is provided,
         self.config_loader.set_config_variable('profile', None)
         resolver = credentials.create_credential_resolver(self.session)
         # Then an EnvProvider should be part of our credential lookup chain.
-        self.assertTrue(
-            any(isinstance(p, EnvProvider) for p in resolver.providers))
+        assert any(isinstance(p, EnvProvider) for p in resolver.providers)
 
     def test_default_cache(self):
         resolver = credentials.create_credential_resolver(self.session)
         cache = resolver.get_provider('assume-role').cache
-        self.assertIsInstance(cache, dict)
+        assert isinstance(cache, dict)
         self.assertEqual(cache, {})
 
     def test_custom_cache(self):
@@ -1712,7 +1712,7 @@ class TestCreateCredentialResolver(BaseEnvVar):
             self.session, custom_cache
         )
         cache = resolver.get_provider('assume-role').cache
-        self.assertIs(cache, custom_cache)
+        assert cache is custom_cache
 
 
 class TestCanonicalNameSourceProvider(BaseEnvVar):
@@ -1732,7 +1732,7 @@ class TestCanonicalNameSourceProvider(BaseEnvVar):
         ])
         self.custom_provider1.load.return_value = self.fake_creds
         result = provider.source_credentials('CustomProvider1')
-        self.assertIs(result, self.fake_creds)
+        assert result is self.fake_creds
 
     def test_load_source_credentials_case_insensitive(self):
         provider = credentials.CanonicalNameCredentialSourcer(providers=[
@@ -1740,12 +1740,12 @@ class TestCanonicalNameSourceProvider(BaseEnvVar):
         ])
         self.custom_provider1.load.return_value = self.fake_creds
         result = provider.source_credentials('cUsToMpRoViDeR1')
-        self.assertIs(result, self.fake_creds)
+        assert result is self.fake_creds
 
     def test_load_unknown_canonical_name_raises_error(self):
         provider = credentials.CanonicalNameCredentialSourcer(providers=[
             self.custom_provider1])
-        with self.assertRaises(botocore.exceptions.UnknownCredentialError):
+        with pytest.raises(botocore.exceptions.UnknownCredentialError):
             provider.source_credentials('CustomUnknown')
 
     def _assert_assume_role_creds_returned_with_shared_file(self, provider):
@@ -1765,11 +1765,11 @@ class TestCanonicalNameSourceProvider(BaseEnvVar):
         )
 
         creds = source.source_credentials(provider.CANONICAL_NAME)
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'a')
         self.assertEqual(creds.secret_key, 'b')
         self.assertEqual(creds.token, 'c')
-        self.assertFalse(provider.load.called)
+        assert not provider.load.called
 
     def _assert_returns_creds_if_assume_role_not_used(self, provider):
         assume_role_provider = mock.Mock(spec=AssumeRoleProvider)
@@ -1789,10 +1789,11 @@ class TestCanonicalNameSourceProvider(BaseEnvVar):
 
         creds = source.source_credentials(provider.CANONICAL_NAME)
         self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'd')
         self.assertEqual(creds.secret_key, 'e')
         self.assertEqual(creds.token, 'f')
-        self.assertTrue(assume_role_provider.load.called)
+        assert assume_role_provider.load.called
 
     def test_assume_role_creds_returned_with_config_file(self):
         provider = mock.Mock(spec=ConfigProvider)
@@ -1829,13 +1830,13 @@ class TestCanonicalNameSourceProvider(BaseEnvVar):
         ])
 
         creds = provider.source_credentials('SharedConfig')
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'a')
         self.assertEqual(creds.secret_key, 'b')
         self.assertEqual(creds.token, 'c')
 
         creds = provider.source_credentials('SharedCredentials')
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'a')
         self.assertEqual(creds.secret_key, 'b')
         self.assertEqual(creds.token, 'c')
@@ -1843,9 +1844,9 @@ class TestCanonicalNameSourceProvider(BaseEnvVar):
     def test_get_canonical_shared_files_without_assume_role(self):
         provider = credentials.CanonicalNameCredentialSourcer(
             providers=[self.custom_provider1])
-        with self.assertRaises(botocore.exceptions.UnknownCredentialError):
+        with pytest.raises(botocore.exceptions.UnknownCredentialError):
             provider.source_credentials('SharedConfig')
-        with self.assertRaises(botocore.exceptions.UnknownCredentialError):
+        with pytest.raises(botocore.exceptions.UnknownCredentialError):
             provider.source_credentials('SharedCredentials')
 
 
@@ -1911,7 +1912,6 @@ class TestAssumeRoleCredentialProvider(unittest.TestCase):
             client_creator, cache={}, profile_name='development')
 
         creds = provider.load()
-
         self.assertEqual(creds.access_key, 'foo')
         self.assertEqual(creds.secret_key, 'bar')
         self.assertEqual(creds.token, 'baz')
@@ -2305,7 +2305,7 @@ class TestAssumeRoleCredentialProvider(unittest.TestCase):
             creds.get_frozen_credentials()
 
             local_now.return_value = expiration_time
-            with self.assertRaises(credentials.RefreshWithMFAUnsupportedError):
+            with pytest.raises(credentials.RefreshWithMFAUnsupportedError):
                 # access_key is a property that will refresh credentials
                 # if they're expired.  Because we set the expiry time to
                 # something in the past, this will trigger the refresh
@@ -2325,7 +2325,7 @@ class TestAssumeRoleCredentialProvider(unittest.TestCase):
         # is a noop and will not return credentials (which means we
         # move on to the next provider).
         creds = provider.load()
-        self.assertIsNone(creds)
+        assert creds is None
 
     def test_source_profile_not_provided(self):
         del self.fake_config['profiles']['development']['source_profile']
@@ -2334,7 +2334,7 @@ class TestAssumeRoleCredentialProvider(unittest.TestCase):
             mock.Mock(), cache={}, profile_name='development')
 
         # source_profile is required, we shoudl get an error.
-        with self.assertRaises(botocore.exceptions.PartialCredentialsError):
+        with pytest.raises(botocore.exceptions.PartialCredentialsError):
             provider.load()
 
     def test_source_profile_does_not_exist(self):
@@ -2345,7 +2345,7 @@ class TestAssumeRoleCredentialProvider(unittest.TestCase):
             mock.Mock(), cache={}, profile_name='development')
 
         # source_profile is required, we shoudl get an error.
-        with self.assertRaises(botocore.exceptions.InvalidConfigError):
+        with pytest.raises(botocore.exceptions.InvalidConfigError):
             provider.load()
 
     def test_incomplete_source_credentials_raises_error(self):
@@ -2354,7 +2354,7 @@ class TestAssumeRoleCredentialProvider(unittest.TestCase):
             self.create_config_loader(),
             mock.Mock(), cache={}, profile_name='development')
 
-        with self.assertRaises(botocore.exceptions.PartialCredentialsError):
+        with pytest.raises(botocore.exceptions.PartialCredentialsError):
             provider.load()
 
     def test_source_profile_and_credential_source_provided(self):
@@ -2364,7 +2364,7 @@ class TestAssumeRoleCredentialProvider(unittest.TestCase):
             self.create_config_loader(),
             mock.Mock(), cache={}, profile_name='development')
 
-        with self.assertRaises(botocore.exceptions.InvalidConfigError):
+        with pytest.raises(botocore.exceptions.InvalidConfigError):
             provider.load()
 
     def test_credential_source_with_no_resolver_configured(self):
@@ -2372,7 +2372,7 @@ class TestAssumeRoleCredentialProvider(unittest.TestCase):
             self.create_config_loader(),
             mock.Mock(), cache={}, profile_name='non-static')
 
-        with self.assertRaises(botocore.exceptions.InvalidConfigError):
+        with pytest.raises(botocore.exceptions.InvalidConfigError):
             provider.load()
 
     def test_credential_source_with_no_providers_configured(self):
@@ -2382,7 +2382,7 @@ class TestAssumeRoleCredentialProvider(unittest.TestCase):
             credential_sourcer=credentials.CanonicalNameCredentialSourcer([])
         )
 
-        with self.assertRaises(botocore.exceptions.InvalidConfigError):
+        with pytest.raises(botocore.exceptions.InvalidConfigError):
             provider.load()
 
     def test_credential_source_not_among_providers(self):
@@ -2401,7 +2401,7 @@ class TestAssumeRoleCredentialProvider(unittest.TestCase):
         # calls for the Environment credential provider as the credentials
         # source. Since that isn't one of the configured source providers,
         # an error is thrown.
-        with self.assertRaises(botocore.exceptions.InvalidConfigError):
+        with pytest.raises(botocore.exceptions.InvalidConfigError):
             provider.load()
 
     def test_assume_role_with_credential_source(self):
@@ -2469,7 +2469,7 @@ class TestAssumeRoleCredentialProvider(unittest.TestCase):
                 [fake_provider])
         )
 
-        with self.assertRaises(botocore.exceptions.CredentialRetrievalError):
+        with pytest.raises(botocore.exceptions.CredentialRetrievalError):
             provider.load()
 
     def test_source_profile_can_reference_self(self):
@@ -2502,7 +2502,7 @@ class TestAssumeRoleCredentialProvider(unittest.TestCase):
         creds = provider.load()
         self.assertEqual(creds.access_key, 'foo')
         self.assertEqual(creds.secret_key, 'bar')
-        self.assertEqual(creds.token, 'baz')
+        assert creds.token, 'baz'
 
     def test_infinite_looping_profiles_raises_error(self):
         config = {
@@ -2523,7 +2523,7 @@ class TestAssumeRoleCredentialProvider(unittest.TestCase):
             mock.Mock(), cache={}, profile_name='first'
         )
 
-        with self.assertRaises(botocore.credentials.InfiniteLoopConfigError):
+        with pytest.raises(botocore.credentials.InfiniteLoopConfigError):
             provider.load()
 
     def test_recursive_assume_role(self):
@@ -2646,18 +2646,18 @@ class TestJSONCache(unittest.TestCase):
     def test_supports_contains_check(self):
         # By default the cache is empty because we're
         # using a new temp dir everytime.
-        self.assertTrue('mykey' not in self.cache)
+        self.assertNotIn('mykey', self.cache)
 
     def test_add_key_and_contains_check(self):
         self.cache['mykey'] = {'foo': 'bar'}
-        self.assertTrue('mykey' in self.cache)
+        self.assertIn('mykey', self.cache)
 
     def test_added_key_can_be_retrieved(self):
         self.cache['mykey'] = {'foo': 'bar'}
         self.assertEqual(self.cache['mykey'], {'foo': 'bar'})
 
     def test_only_accepts_json_serializable_data(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             # set()'s cannot be serialized to a JSON string.
             self.cache['mykey'] = set()
 
@@ -2679,7 +2679,7 @@ class TestJSONCache(unittest.TestCase):
         self.assertEqual(cache['foo'], {'bar': 'baz'})
 
     def test_key_error_raised_when_cache_key_does_not_exist(self):
-        with self.assertRaises(KeyError):
+        with pytest.raises(KeyError):
             self.cache['foo']
 
     def test_file_is_truncated_before_writing(self):
@@ -2721,8 +2721,7 @@ class TestRefreshLogic(unittest.TestCase):
             mandatory_refresh=3,
             advisory_refresh=3)
         temp = creds.get_frozen_credentials()
-        self.assertEqual(
-            temp, credentials.ReadOnlyCredentials('1', '1', '1'))
+        self.assertEqual(temp, credentials.ReadOnlyCredentials('1', '1', '1'))
 
     def test_advisory_refresh_needed(self):
         creds = IntegerRefresher(
@@ -2732,8 +2731,7 @@ class TestRefreshLogic(unittest.TestCase):
             mandatory_refresh=2,
             advisory_refresh=5)
         temp = creds.get_frozen_credentials()
-        self.assertEqual(
-            temp, credentials.ReadOnlyCredentials('1', '1', '1'))
+        self.assertEqual(temp, credentials.ReadOnlyCredentials('1', '1', '1'))
 
     def test_refresh_fails_is_not_an_error_during_advisory_period(self):
         fail_refresh = mock.Mock(side_effect=Exception("refresh failed"))
@@ -2745,13 +2743,12 @@ class TestRefreshLogic(unittest.TestCase):
         )
         temp = creds.get_frozen_credentials()
         # We should have called the refresh function.
-        self.assertTrue(fail_refresh.called)
+        assert fail_refresh.called
         # The fail_refresh function will raise an exception.
         # Because we're in the advisory period we'll not propogate
         # the exception and return the current set of credentials
         # (generation '1').
-        self.assertEqual(
-            temp, credentials.ReadOnlyCredentials('0', '0', '0'))
+        self.assertEqual(temp, credentials.ReadOnlyCredentials('0', '0', '0'))
 
     def test_exception_propogated_on_error_during_mandatory_period(self):
         fail_refresh = mock.Mock(side_effect=Exception("refresh failed"))
@@ -2762,7 +2759,7 @@ class TestRefreshLogic(unittest.TestCase):
             mandatory_refresh=7,
             refresh_function=fail_refresh
         )
-        with six.assertRaisesRegex(self, Exception, 'refresh failed'):
+        with pytest.raises(Exception, match=r'refresh failed'):
             creds.get_frozen_credentials()
 
     def test_exception_propogated_on_expired_credentials(self):
@@ -2775,7 +2772,7 @@ class TestRefreshLogic(unittest.TestCase):
             mandatory_refresh=7,
             refresh_function=fail_refresh
         )
-        with six.assertRaisesRegex(self, Exception, 'refresh failed'):
+        with pytest.raises(Exception, match=r'refresh failed'):
             # Because credentials are actually expired, any
             # failure to refresh should be propagated.
             creds.get_frozen_credentials()
@@ -2796,7 +2793,7 @@ class TestRefreshLogic(unittest.TestCase):
             creds_last_for=-2,
         )
         err_msg = 'refreshed credentials are still expired'
-        with six.assertRaisesRegex(self, RuntimeError, err_msg):
+        with pytest.raises(RuntimeError, match=err_msg):
             # Because credentials are actually expired, any
             # failure to refresh should be propagated.
             creds.get_frozen_credentials()
@@ -2809,7 +2806,7 @@ class TestContainerProvider(BaseEnvVar):
         environ = {}
         provider = credentials.ContainerProvider(environ)
         creds = provider.load()
-        self.assertIsNone(creds)
+        assert creds is None
 
     def full_url(self, url):
         return 'http://%s%s' % (ContainerMetadataFetcher.IP_ADDRESS, url)
@@ -2882,7 +2879,7 @@ class TestContainerProvider(BaseEnvVar):
         exception = botocore.exceptions.CredentialRetrievalError
         fetcher.retrieve_full_uri.side_effect = exception(provider='ecs-role',
                                                      error_msg='fake http error')
-        with self.assertRaises(exception):
+        with pytest.raises(exception):
             provider = credentials.ContainerProvider(environ, fetcher)
             creds = provider.load()
 
@@ -2910,7 +2907,7 @@ class TestContainerProvider(BaseEnvVar):
         # First time works with no issues.
         creds = provider.load()
         # Second time with a refresh should propagate an error.
-        with self.assertRaises(raised_exception):
+        with pytest.raises(raised_exception):
             frozen_creds = creds.get_frozen_credentials()
 
     def test_can_use_full_url(self):
@@ -2987,13 +2984,13 @@ class TestProcessProvider(BaseEnvVar):
         # self.loaded_config is an empty dictionary with no profile
         # information.
         provider = self.create_process_provider()
-        self.assertIsNone(provider.load())
+        assert provider.load() is None
 
     def test_process_not_invoked_if_not_configured_for_empty_config(self):
         # No credential_process configured so we skip this provider.
         self.loaded_config['profiles'] = {'default': {}}
         provider = self.create_process_provider()
-        self.assertIsNone(provider.load())
+        assert provider.load() is None
 
     def test_can_retrieve_via_process(self):
         self.loaded_config['profiles'] = {
@@ -3009,7 +3006,7 @@ class TestProcessProvider(BaseEnvVar):
 
         provider = self.create_process_provider()
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'foo')
         self.assertEqual(creds.secret_key, 'bar')
         self.assertEqual(creds.token, 'baz')
@@ -3035,7 +3032,7 @@ class TestProcessProvider(BaseEnvVar):
 
         provider = self.create_process_provider()
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.popen_mock.assert_called_with(
             ['my-process', '--foo', '--bar', 'one two'],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -3070,7 +3067,7 @@ class TestProcessProvider(BaseEnvVar):
 
         provider = self.create_process_provider()
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'foo2')
         self.assertEqual(creds.secret_key, 'bar2')
         self.assertEqual(creds.token, 'baz2')
@@ -3084,7 +3081,7 @@ class TestProcessProvider(BaseEnvVar):
 
         provider = self.create_process_provider()
         exception = botocore.exceptions.CredentialRetrievalError
-        with six.assertRaisesRegex(self, exception, 'Error Message'):
+        with pytest.raises(exception, match='Error Message'):
             provider.load()
 
     def test_unsupported_version_raises_mismatch(self):
@@ -3102,7 +3099,7 @@ class TestProcessProvider(BaseEnvVar):
 
         provider = self.create_process_provider()
         exception = botocore.exceptions.CredentialRetrievalError
-        with six.assertRaisesRegex(self, exception, 'Unsupported version'):
+        with pytest.raises(exception, match='Unsupported version'):
             provider.load()
 
     def test_missing_version_in_payload_returned_raises_exception(self):
@@ -3119,7 +3116,7 @@ class TestProcessProvider(BaseEnvVar):
 
         provider = self.create_process_provider()
         exception = botocore.exceptions.CredentialRetrievalError
-        with six.assertRaisesRegex(self, exception, 'Unsupported version'):
+        with pytest.raises(exception, match='Unsupported version'):
             provider.load()
 
     def test_missing_access_key_raises_exception(self):
@@ -3136,7 +3133,7 @@ class TestProcessProvider(BaseEnvVar):
 
         provider = self.create_process_provider()
         exception = botocore.exceptions.CredentialRetrievalError
-        with six.assertRaisesRegex(self, exception, 'Missing required key'):
+        with pytest.raises(exception, match='Missing required key'):
             provider.load()
 
     def test_missing_secret_key_raises_exception(self):
@@ -3153,7 +3150,7 @@ class TestProcessProvider(BaseEnvVar):
 
         provider = self.create_process_provider()
         exception = botocore.exceptions.CredentialRetrievalError
-        with six.assertRaisesRegex(self, exception, 'Missing required key'):
+        with pytest.raises(exception, match='Missing required key'):
             provider.load()
 
     def test_missing_session_token(self):
@@ -3170,10 +3167,10 @@ class TestProcessProvider(BaseEnvVar):
 
         provider = self.create_process_provider()
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'foo')
         self.assertEqual(creds.secret_key, 'bar')
-        self.assertIsNone(creds.token)
+        assert creds.token is None
         self.assertEqual(creds.method, 'custom-process')
 
     def test_missing_expiration(self):
@@ -3191,6 +3188,7 @@ class TestProcessProvider(BaseEnvVar):
         provider = self.create_process_provider()
         creds = provider.load()
         self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'foo')
         self.assertEqual(creds.secret_key, 'bar')
         self.assertEqual(creds.token, 'baz')
@@ -3209,10 +3207,10 @@ class TestProcessProvider(BaseEnvVar):
 
         provider = self.create_process_provider()
         creds = provider.load()
-        self.assertIsNotNone(creds)
+        assert creds is not None
         self.assertEqual(creds.access_key, 'foo')
         self.assertEqual(creds.secret_key, 'bar')
-        self.assertIsNone(creds.token)
+        assert creds.token is None
         self.assertEqual(creds.method, 'custom-process')
 
 
@@ -3234,7 +3232,7 @@ class TestProfileProviderBuilder(unittest.TestCase):
         self.assertEqual(len(providers), len(expected_providers))
         zipped_providers = six.moves.zip(providers, expected_providers)
         for provider, expected_type in zipped_providers:
-            self.assertTrue(isinstance(provider, expected_type))
+            assert isinstance(provider, expected_type)
 
 
 class TestSSOCredentialFetcher(unittest.TestCase):
@@ -3311,7 +3309,7 @@ class TestSSOCredentialFetcher(unittest.TestCase):
             service_error_code='UnauthorizedException',
             expected_params=expected_params,
         )
-        with self.assertRaises(botocore.exceptions.UnauthorizedSSOTokenError):
+        with pytest.raises(botocore.exceptions.UnauthorizedSSOTokenError):
             with self.stubber:
                 credentials = self.fetcher.fetch_credentials()
 
@@ -3426,5 +3424,5 @@ class TestSSOProvider(unittest.TestCase):
     def test_required_config_not_set(self):
         del self.config['sso_start_url']
         # If any required configuration is missing we should get an error
-        with self.assertRaises(botocore.exceptions.InvalidConfigError):
+        with pytest.raises(botocore.exceptions.InvalidConfigError):
             self.provider.load()
