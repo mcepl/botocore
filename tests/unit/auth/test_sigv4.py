@@ -27,6 +27,7 @@ import io
 import datetime
 import re
 from botocore.compat import six, urlsplit, parse_qsl, HAS_CRT
+import pytest
 
 from tests import mock
 
@@ -79,7 +80,16 @@ class RawHTTPRequest(six.moves.BaseHTTPServer.BaseHTTPRequestHandler):
         self.error_message = message
 
 
-def test_generator():
+def _load_test_cases():
+    cases = set(os.path.splitext(i)[0] for i in os.listdir(TESTSUITE_DIR))
+    for case in cases:
+        if case in TESTS_TO_IGNORE:
+            continue
+        yield case
+
+
+@pytest.mark.parametrize("test_case", _load_test_cases())
+def test_generator(test_case):
     datetime_patcher = mock.patch.object(
         botocore.auth.datetime, 'datetime',
         mock.Mock(wraps=datetime.datetime)
